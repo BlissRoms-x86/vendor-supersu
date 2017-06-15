@@ -52,6 +52,9 @@
 #   KEEPVERITY - Do not remove dm-verity (true/false, PATCHBOOTIMAGE only)
 #   KEEPFORCEENCRYPT - Do not replace forceencrypt with encryptable (true/
 #                      false, PATCHBOOTIMAGE only)
+#   REMOVEENCRYPTABLE - Remove the encryptable flag, needed on newer
+#                       Samsung devices to disable forced encryption
+#                       (true/false, PATCHBOOTIMAGE only)
 #   FRP - Place files in boot image that allow root to survive a factory
 #         reset (true/false, PATCHBOOTIMAGE only). Reverts to su binaries
 #         from the time the ZIP was originall flashed, updates are lost.
@@ -612,6 +615,12 @@ find_boot_image() {
       if [ ! -z "$BOOTIMAGE" ]; then break; fi
     done
   fi
+
+  # if we found nothing, try the recovery.fstab (TWRP), and hope named partitions are actually
+  # available from Android for APK unroot; this is know to occur, suspected to be a TWRP bug
+  if [ -z "$BOOTIMAGE" ]; then
+    BOOTIMAGE=$(cat /etc/recovery.fstab | grep -v "#" | grep -m 1 "^/boot" | tr -s " " | cut -f 3 -d " " | grep "/dev/block")
+  fi
 }
 
 # use only on 6.0+, tries to read current boot image and detect if we can do a system install
@@ -766,6 +775,10 @@ ui_print        "*****************"
 ui_print_always "SuperSU installer"
 ui_print        "*****************"
 
+# fix slow RNG on some devices, which may cause installation to cause weeks (kernel/toybox issue)
+
+mount -o bind /dev/urandom /dev/random
+
 # detect slot-based partition layout
 
 SLOT_USED=false
@@ -875,6 +888,7 @@ if [ -z "$NOOVERRIDE" ]; then
   getvar PERMISSIVE
   getvar KEEPVERITY
   getvar KEEPFORCEENCRYPT
+  getvar REMOVEENCRYPTABLE
   getvar FRP
 fi
 if [ -z "$SYSTEMLESS" ]; then
@@ -900,6 +914,10 @@ fi
 if [ -z "$KEEPFORCEENCRYPT" ]; then
   # we don't keep forceencrypt by default
   KEEPFORCEENCRYPT=false
+fi
+if [ -z "$REMOVEENCRYPTABLE" ]; then
+  # we don't remove encryptable by default
+  REMOVEENCRYPTABLE=false
 fi
 if [ -z "$FRP" ]; then
   # enable FRP if we're using slots, implying large enough boot image
@@ -1333,7 +1351,7 @@ else
 
     # Wipe /data/security to prevent SELinux policy override
     # Important to keep the folder itself
-#    rm -rf /data/security/*
+    rm -rf /data/security/*
   else
     cp_perm 1000 1000 0600 $COM/Superuser.apk /cache/SuperSU.apk
   fi
@@ -1471,6 +1489,9 @@ else
     if ($KEEPFORCEENCRYPT); then
       COMMAND="$COMMAND --keep-forceencrypt"
     fi
+    if ($REMOVEENCRYPTABLE); then
+      COMMAND="$COMMAND --remove-encryptable"
+    fi
     check_zero_def "- Patching init.*.rc, fstabs, dm-verity" "$COMMAND"
 
     if ($CONTINUE); then
@@ -1563,7 +1584,7 @@ else
     if ($CONTINUE); then
         # might return 1 even if we do not want to abort
         ui_print "- Applying hex patches"
-        /su/bin/sukernel --hexpatch $COM/hexpatch /sutmp/boot.img /sutmp/boot.img
+        LD_LIBRARY_PATH=$SYSTEMLIB /su/bin/sukernel --hexpatch $COM/hexpatch /sutmp/boot.img /sutmp/boot.img
     fi
 
     if [ -f "/data/custom_boot_image_patch.sh" ]; then
@@ -1589,10 +1610,10 @@ else
       fi
     fi
 
-#    rm -rf /sutmp
+    rm -rf /sutmp
   fi
 
-#  umount /su
+  umount /su
   losetup -d $LOOPDEVICE
 
   ui_print " "
@@ -1637,6 +1658,10 @@ else
     umount /system
   fi
 fi
+
+# revert RNG fix
+
+umount /dev/random
 
 ui_print_always "- Done !"
 exit 0
