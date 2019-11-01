@@ -1,13 +1,16 @@
 LOCAL_PATH := $(call my-dir)
 
-include $(CLEAR_VARS)
-LOCAL_MODULE := SuperSU
-LOCAL_MODULE_TAGS := optional
-LOCAL_CERTIFICATE := PRESIGNED
-LOCAL_MODULE_CLASS := APPS
-LOCAL_SRC_FILES := common/Superuser.apk
-LOCAL_PRIVATE_PLATFORM_APIS := true
-include $(BUILD_PREBUILT)
+# include $(CLEAR_VARS)
+# LOCAL_MODULE := SuperSU
+# LOCAL_MODULE_TAGS := optional
+# LOCAL_CERTIFICATE := PRESIGNED
+# LOCAL_MODULE_CLASS := APPS
+# LOCAL_SRC_FILES := $(LOCAL_PATH)/common/Superuser.apk
+# LOCAL_PRIVATE_PLATFORM_APIS := true
+# LOCAL_POST_INSTALL_CMD := chmod 6755 $(LOCAL_MODULE_PATH)/$(LOCAL_MODULE)
+# LOCAL_MODULE_PATH := $(TARGET_OUT_OPTIONAL_EXECUTABLES)
+# LOCAL_UNSTRIPPED_PATH := $(LOCAL_MODULE_PATH)
+# include $(BUILD_PREBUILT)
 
 
 PRODUCT_COPY_FILES += \
@@ -22,4 +25,4 @@ PRODUCT_COPY_FILES += \
     vendor/supersu/x86/libsupol.so:system/lib/libsupol.so \
     vendor/supersu/x86/libsupol.so:system/lib64/libsupol.so
 
-PRODUCT_PACKAGES += SuperSU
+# PRODUCT_PACKAGES += SuperSU
